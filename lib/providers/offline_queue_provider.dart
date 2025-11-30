@@ -35,9 +35,9 @@ class OfflineQueueState {
 }
 
 class OfflineQueueNotifier extends StateNotifier<OfflineQueueState> {
-  OfflineQueueNotifier(this._ref)
+  OfflineQueueNotifier(Ref ref)
     : _box = Hive.box(HiveBoxes.offlineTransactions),
-      _repository = _ref.read(transactionRepositoryProvider),
+      _repository = ref.read(transactionRepositoryProvider),
       _connectivity = Connectivity(),
       super(
         OfflineQueueState(
@@ -45,7 +45,6 @@ class OfflineQueueNotifier extends StateNotifier<OfflineQueueState> {
         ),
       );
 
-  final Ref _ref;
   final Box _box;
   final TransactionRepository _repository;
   final Connectivity _connectivity;

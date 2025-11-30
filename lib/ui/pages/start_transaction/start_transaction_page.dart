@@ -11,9 +11,7 @@ import '../../../data/exceptions/app_exception.dart';
 import '../../../data/models/product_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/product_provider.dart';
-import '../../../providers/category_provider.dart';
 import '../../../providers/admin/product_management_provider.dart';
-import '../../widgets/custom_app_bar.dart';
 import '../payment/payment_page.dart';
 import '../scanner/scanner_page.dart';
 import '../../../utils/formatters.dart';
@@ -32,11 +30,7 @@ class StartTransactionPage extends ConsumerStatefulWidget {
 class _StartTransactionPageState extends ConsumerState<StartTransactionPage> {
   final _barcodeController = TextEditingController();
   final _barcodeFocusNode = FocusNode();
-  String? _lastLookup;
   ProviderSubscription<AsyncValue<ProductModel?>>? _barcodeSubscription;
-
-  // selected category for filtering cart-list display (nullable = all)
-  int? _selectedCategoryId;
 
   @override
   void initState() {
@@ -48,7 +42,6 @@ class _StartTransactionPageState extends ConsumerState<StartTransactionPage> {
           data: (product) {
             if (product != null) {
               _barcodeController.clear();
-              _lastLookup = null;
               // DEBUG
               print('Barcode lookup found: ${product.name}');
             }
@@ -112,7 +105,6 @@ class _StartTransactionPageState extends ConsumerState<StartTransactionPage> {
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final barcodeAsync = ref.watch(productBarcodeProvider);
-    final categoriesAsync = ref.watch(categoryListProvider);
 
     // DEBUG: Print semua item di cart
     print('=== DEBUG CART ===');
@@ -181,198 +173,187 @@ class _StartTransactionPageState extends ConsumerState<StartTransactionPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // --- INPUT SECTION (Fixed at top) ---
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.white,
-            child: Column(
-              children: [
-                Row(
+      resizeToAvoidBottomInset: false,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _barcodeController,
-                        focusNode: _barcodeFocusNode,
-                        textInputAction: TextInputAction.search,
-                        decoration: const InputDecoration(
-                          labelText: 'Masukkan / scan barcode atau nama produk',
-                          prefixIcon: Icon(Icons.search),
-                        ),
-                        onChanged: (value) {
-                          // Real-time search as user types
-                          setState(() {});
-                        },
-                        onSubmitted: _lookupBarcode,
+                    // --- INPUT SECTION (Fixed at top) ---
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      color: Colors.white,
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _barcodeController,
+                                  focusNode: _barcodeFocusNode,
+                                  textInputAction: TextInputAction.search,
+                                  decoration: const InputDecoration(
+                                    labelText:
+                                        'Masukkan / scan barcode atau nama produk',
+                                    prefixIcon: Icon(Icons.search),
+                                  ),
+                                  onChanged: (value) {
+                                    // Real-time search as user types
+                                    setState(() {});
+                                  },
+                                  onSubmitted: _lookupBarcode,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  final result = await context.push<String>(
+                                    ScannerPage.routePath,
+                                  );
+                                  if (result != null && result.isNotEmpty) {
+                                    _lookupBarcode(result);
+                                  }
+                                },
+                                icon: const Icon(Icons.photo_camera),
+                                label: const Text('Scan'),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        final result = await context.push<String>(
-                          ScannerPage.routePath,
-                        );
-                        if (result != null && result.isNotEmpty) {
-                          _lookupBarcode(result);
-                        }
-                      },
-                      icon: const Icon(Icons.photo_camera),
-                      label: const Text('Scan'),
-                    ),
+
+                    const SizedBox(height: 8),
+
+                    // --- LOOKUP RESULT (Appears below search when found) ---
+                    if (barcodeAsync.value != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: ListTile(
+                          tileColor: AppColors.lightGray.withOpacity(0.3),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          title: Text(barcodeAsync.value!.name),
+                          subtitle: Text(
+                            'Rp ${barcodeAsync.value!.price.toStringAsFixed(0)}',
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(
+                              Icons.add_circle,
+                              color: AppColors.primaryBlue,
+                            ),
+                            onPressed: () {
+                              final product = barcodeAsync.value!;
+                              final currentQuantity = _getCurrentQuantityInCart(
+                                cart,
+                                product.id,
+                              );
+
+                              if (currentQuantity >= product.stock) {
+                                _showStockAlert(
+                                  product.name,
+                                  product.stock,
+                                  currentQuantity + 1,
+                                );
+                              } else {
+                                print(
+                                  'Adding product from barcode: ${product.name}',
+                                );
+                                ref
+                                    .read(cartProvider.notifier)
+                                    .addProduct(product);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // --- CART ITEMS (Always visible at top) ---
+                    if (cart.items.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Item dalam Keranjang (${cart.items.length})',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: LimitedBox(
+                          maxHeight: 200,
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: cart.items.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (context, index) {
+                              final item = cart.items[index];
+                              return _CartProductCard(
+                                cartItem: item,
+                                onIncrement: () {
+                                  final product = item.product;
+                                  final currentQuantity =
+                                      _getQuantityFromCartItem(item);
+
+                                  if (currentQuantity >= product.stock) {
+                                    _showStockAlert(
+                                      product.name,
+                                      product.stock,
+                                      currentQuantity + 1,
+                                    );
+                                  } else {
+                                    print(
+                                      'Incrementing product: ${product.name}',
+                                    );
+                                    ref
+                                        .read(cartProvider.notifier)
+                                        .incrementItem(product.id);
+                                  }
+                                },
+                                onDecrement: () {
+                                  print(
+                                    'Decrementing product: ${item.product.name}',
+                                  );
+                                  ref
+                                      .read(cartProvider.notifier)
+                                      .decrementItem(item.product.id);
+                                },
+                                onRemove: () {
+                                  print(
+                                    'Removing product: ${item.product.name}',
+                                  );
+                                  ref
+                                      .read(cartProvider.notifier)
+                                      .removeItem(item.product.id);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // --- PRODUCT LIST (Scrollable below cart) ---
+                    _buildProductListSection(ref, cart),
                   ],
                 ),
-                const SizedBox(height: 12),
-
-                // --- CATEGORY DROPDOWN ---
-                categoriesAsync.when(
-                  data: (items) {
-                    final dropdownItems = items
-                        .map(
-                          (category) => DropdownMenuItem<int?>(
-                            value: category.id,
-                            child: Text(category.name),
-                          ),
-                        )
-                        .toList();
-                    dropdownItems.insert(
-                      0,
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('Semua kategori'),
-                      ),
-                    );
-                    return DropdownButtonFormField<int?>(
-                      initialValue: _selectedCategoryId,
-                      decoration: const InputDecoration(labelText: 'Kategori'),
-                      items: dropdownItems,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCategoryId = value;
-                        });
-                      },
-                    );
-                  },
-                  loading: () => const LinearProgressIndicator(minHeight: 2),
-                  error: (error, _) => Text(
-                    'Kategori gagal dimuat: $error',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: Colors.red),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // --- LOOKUP RESULT (Appears below search when found) ---
-          if (barcodeAsync.value != null) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ListTile(
-                tileColor: AppColors.lightGray.withOpacity(0.3),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                title: Text(barcodeAsync.value!.name),
-                subtitle: Text(
-                  'Rp ${barcodeAsync.value!.price.toStringAsFixed(0)}',
-                ),
-                trailing: IconButton(
-                  icon: const Icon(
-                    Icons.add_circle,
-                    color: AppColors.primaryBlue,
-                  ),
-                  onPressed: () {
-                    final product = barcodeAsync.value!;
-                    final currentQuantity = _getCurrentQuantityInCart(
-                      cart,
-                      product.id,
-                    );
-
-                    if (currentQuantity >= product.stock) {
-                      _showStockAlert(
-                        product.name,
-                        product.stock,
-                        currentQuantity + 1,
-                      );
-                    } else {
-                      print('Adding product from barcode: ${product.name}');
-                      ref.read(cartProvider.notifier).addProduct(product);
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-
-          // --- CART ITEMS (Always visible at top) ---
-          if (cart.items.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Text(
-                    'Item dalam Keranjang (${cart.items.length})',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              flex: cart.items.length > 2 ? 2 : 1,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: cart.items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final item = cart.items[index];
-                  return _CartProductCard(
-                    cartItem: item,
-                    onIncrement: () {
-                      final product = item.product;
-                      final currentQuantity = _getQuantityFromCartItem(item);
-
-                      if (currentQuantity >= product.stock) {
-                        _showStockAlert(
-                          product.name,
-                          product.stock,
-                          currentQuantity + 1,
-                        );
-                      } else {
-                        print('Incrementing product: ${product.name}');
-                        ref
-                            .read(cartProvider.notifier)
-                            .incrementItem(product.id);
-                      }
-                    },
-                    onDecrement: () {
-                      print('Decrementing product: ${item.product.name}');
-                      ref
-                          .read(cartProvider.notifier)
-                          .decrementItem(item.product.id);
-                    },
-                    onRemove: () {
-                      print('Removing product: ${item.product.name}');
-                      ref
-                          .read(cartProvider.notifier)
-                          .removeItem(item.product.id);
-                    },
-                  );
-                },
               ),
             ),
           ],
-
-          // --- PRODUCT LIST (Scrollable below cart) ---
-          Expanded(child: _buildProductListSection(ref, cart)),
-        ],
+        ),
       ),
       bottomNavigationBar: _CheckoutSummary(
         totalItems: cart.totalItems,
@@ -389,8 +370,29 @@ class _StartTransactionPageState extends ConsumerState<StartTransactionPage> {
 
   Widget _buildProductListSection(WidgetRef ref, CartState cart) {
     final state = ref.watch(productManagementProvider);
-    final selectedCategoryId = _selectedCategoryId;
     final searchQuery = _barcodeController.text.trim();
+
+    // If no search query, show empty state
+    if (searchQuery.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search, size: 48, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Cari produk untuk memulai',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Ketik nama produk atau scan barcode',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
 
     // Handle loading state
     if (state.isLoading && state.items.isEmpty) {
@@ -413,17 +415,14 @@ class _StartTransactionPageState extends ConsumerState<StartTransactionPage> {
       );
     }
 
-    // Filter products by selected category, active status, and search query
+    // Filter products by active status and search query only
     final filteredProducts = state.items.where((product) {
-      final categoryMatch =
-          selectedCategoryId == null ||
-          product.categoryId == selectedCategoryId;
       final activeMatch = product.isActive;
       final searchMatch =
           searchQuery.isEmpty ||
           product.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
           (product.barcode.toLowerCase().contains(searchQuery.toLowerCase()));
-      return categoryMatch && activeMatch && searchMatch;
+      return activeMatch && searchMatch;
     }).toList();
 
     if (filteredProducts.isEmpty) {
@@ -435,7 +434,7 @@ class _StartTransactionPageState extends ConsumerState<StartTransactionPage> {
             SizedBox(height: 8),
             Text('Produk tidak ditemukan'),
             Text(
-              'Coba kata kunci lain atau kategori berbeda',
+              'Coba kata kunci lain',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -455,49 +454,49 @@ class _StartTransactionPageState extends ConsumerState<StartTransactionPage> {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            itemCount: filteredProducts.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final product = filteredProducts[index];
-              // Find current quantity in cart for this product
-              final quantity = _getCurrentQuantityInCart(cart, product.id);
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          itemCount: filteredProducts.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final product = filteredProducts[index];
+            // Find current quantity in cart for this product
+            final quantity = _getCurrentQuantityInCart(cart, product.id);
 
-              return _ProductListCard(
-                product: product,
-                quantity: quantity,
-                onIncrement: () {
-                  if (quantity >= product.stock) {
-                    _showStockAlert(product.name, product.stock, quantity + 1);
-                  } else {
-                    print('Adding product from list: ${product.name}');
-                    ref.read(cartProvider.notifier).addProduct(product);
-                  }
-                },
-                onDecrement: () {
-                  if (quantity > 1) {
-                    print('Decrementing product from list: ${product.name}');
-                    ref.read(cartProvider.notifier).decrementItem(product.id);
-                  } else {
-                    print('Removing product from list: ${product.name}');
-                    ref.read(cartProvider.notifier).removeItem(product.id);
-                  }
-                },
-                onAdd: () {
-                  if (quantity >= product.stock) {
-                    _showStockAlert(product.name, product.stock, quantity + 1);
-                  } else {
-                    print(
-                      'Adding product from list (add button): ${product.name}',
-                    );
-                    ref.read(cartProvider.notifier).addProduct(product);
-                  }
-                },
-              );
-            },
-          ),
+            return _ProductListCard(
+              product: product,
+              quantity: quantity,
+              onIncrement: () {
+                if (quantity >= product.stock) {
+                  _showStockAlert(product.name, product.stock, quantity + 1);
+                } else {
+                  print('Adding product from list: ${product.name}');
+                  ref.read(cartProvider.notifier).addProduct(product);
+                }
+              },
+              onDecrement: () {
+                if (quantity > 1) {
+                  print('Decrementing product from list: ${product.name}');
+                  ref.read(cartProvider.notifier).decrementItem(product.id);
+                } else {
+                  print('Removing product from list: ${product.name}');
+                  ref.read(cartProvider.notifier).removeItem(product.id);
+                }
+              },
+              onAdd: () {
+                if (quantity >= product.stock) {
+                  _showStockAlert(product.name, product.stock, quantity + 1);
+                } else {
+                  print(
+                    'Adding product from list (add button): ${product.name}',
+                  );
+                  ref.read(cartProvider.notifier).addProduct(product);
+                }
+              },
+            );
+          },
         ),
       ],
     );
@@ -531,7 +530,6 @@ class _StartTransactionPageState extends ConsumerState<StartTransactionPage> {
   void _lookupBarcode(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return;
-    _lastLookup = trimmed;
     print('Looking up barcode: $trimmed');
     ref.read(productBarcodeProvider.notifier).lookup(trimmed);
   }
@@ -919,43 +917,6 @@ class _CheckoutSummary extends StatelessWidget {
               label: const Text('Lanjut ke Pembayaran'),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LookupErrorMessage extends StatelessWidget {
-  const _LookupErrorMessage({required this.message, this.onRetry});
-
-  final String message;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.red.shade700),
-            ),
-          ),
-          if (onRetry != null)
-            TextButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Coba lagi'),
-            ),
         ],
       ),
     );

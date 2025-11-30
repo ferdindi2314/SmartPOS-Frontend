@@ -13,8 +13,6 @@ import '../admin/product_management_page.dart';
 import '../admin/report_overview_page.dart';
 import '../admin/stock_adjustment_page.dart';
 import '../history/history_page.dart';
-import '../product_search/product_search_page.dart';
-import '../scanner/scanner_page.dart';
 import '../start_transaction/start_transaction_page.dart';
 
 class DashboardPage extends ConsumerWidget {
@@ -33,16 +31,6 @@ class DashboardPage extends ConsumerWidget {
         icon: Icons.point_of_sale,
         label: 'Mulai Transaksi',
         routePath: StartTransactionPage.routePath,
-      ),
-      const _ShortcutConfig(
-        icon: Icons.qr_code_scanner,
-        label: 'Scan Barcode',
-        routePath: ScannerPage.routePath,
-      ),
-      const _ShortcutConfig(
-        icon: Icons.search,
-        label: 'Cari Produk',
-        routePath: ProductSearchPage.routePath,
       ),
       const _ShortcutConfig(
         icon: Icons.history,
@@ -117,7 +105,7 @@ class DashboardPage extends ConsumerWidget {
                           crossAxisCount: 2,
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
-                          childAspectRatio: 1.5,
+                          childAspectRatio: 1.2,
                         ),
                     itemCount: shortcuts.length,
                     itemBuilder: (context, index) {
@@ -302,21 +290,36 @@ class _TodaySummaryError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Create a more user-friendly message
+    String displayMessage = message;
+    if (message.contains('404') || message.contains('Not Found')) {
+      displayMessage =
+          'Data ringkasan tidak tersedia. Hubungi administrator jika masalah berlanjut.';
+    } else if (message.contains('Connection')) {
+      displayMessage =
+          'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+    } else if (message.contains('timeout')) {
+      displayMessage = 'Permintaan terlalu lama. Silakan coba lagi.';
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: Colors.amber.shade50,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.amber.shade200),
       ),
       child: Row(
         children: [
+          Icon(Icons.warning_rounded, color: Colors.amber.shade700),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
-              message,
+              displayMessage,
               style: Theme.of(
                 context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.red.shade700),
+              ).textTheme.bodyMedium?.copyWith(color: Colors.amber.shade700),
             ),
           ),
           TextButton.icon(
@@ -347,7 +350,7 @@ class _ShortcutButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -361,11 +364,19 @@ class _ShortcutButton extends StatelessWidget {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: AppColors.primaryBlue),
-            const SizedBox(height: 12),
-            Text(label, style: Theme.of(context).textTheme.titleMedium),
+            Icon(icon, color: AppColors.primaryBlue, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

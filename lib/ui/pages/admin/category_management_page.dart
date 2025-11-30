@@ -129,6 +129,7 @@ class _CategoryManagementPageState
         icon: const Icon(Icons.add),
         label: const Text('Kategori Baru'),
       ),
+      resizeToAvoidBottomInset: true,
       body: Column(
         children: [
           Padding(

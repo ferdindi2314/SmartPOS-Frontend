@@ -136,6 +136,7 @@ class _ProductManagementPageState extends ConsumerState<ProductManagementPage> {
         icon: const Icon(Icons.add),
         label: const Text('Produk Baru'),
       ),
+      resizeToAvoidBottomInset: true,
       body: Column(
         children: [
           _FilterCard(

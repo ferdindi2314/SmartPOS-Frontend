@@ -113,64 +113,71 @@ class _StockAdjustmentPageState extends ConsumerState<StockAdjustmentPage> {
           ),
         ],
       ),
+      resizeToAvoidBottomInset: true,
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Aksi Stok',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => _openAdjustmentSheet(true),
-                        icon: const Icon(Icons.add_box_outlined),
-                        label: const Text('Stok Masuk'),
-                      ),
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Aksi Stok',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _openAdjustmentSheet(false),
-                        icon: const Icon(Icons.indeterminate_check_box),
-                        label: const Text('Stok Keluar'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Filter Log',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                const SizedBox(height: 8),
-                _FilterSection(
-                  state: state,
-                  productOptions: productOptions,
-                  onClear: () =>
-                      ref.read(stockManagementProvider.notifier).clearFilters(),
-                  onSelectProduct: (id) =>
-                      ref.read(stockManagementProvider.notifier).setProduct(id),
-                  onSelectType: (type) =>
-                      ref.read(stockManagementProvider.notifier).setType(type),
-                  onPickDate: _pickDate,
-                  onClearDate: () =>
-                      ref.read(stockManagementProvider.notifier).setDate(null),
-                  dateLabel: state.selectedDate == null
-                      ? 'Semua tanggal'
-                      : _filterDateFormat.format(state.selectedDate!),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => _openAdjustmentSheet(true),
+                          icon: const Icon(Icons.add_box_outlined),
+                          label: const Text('Stok Masuk'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _openAdjustmentSheet(false),
+                          icon: const Icon(Icons.indeterminate_check_box),
+                          label: const Text('Stok Keluar'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Filter Log',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _FilterSection(
+                    state: state,
+                    productOptions: productOptions,
+                    onClear: () => ref
+                        .read(stockManagementProvider.notifier)
+                        .clearFilters(),
+                    onSelectProduct: (id) => ref
+                        .read(stockManagementProvider.notifier)
+                        .setProduct(id),
+                    onSelectType: (type) => ref
+                        .read(stockManagementProvider.notifier)
+                        .setType(type),
+                    onPickDate: _pickDate,
+                    onClearDate: () => ref
+                        .read(stockManagementProvider.notifier)
+                        .setDate(null),
+                    dateLabel: state.selectedDate == null
+                        ? 'Semua tanggal'
+                        : _filterDateFormat.format(state.selectedDate!),
+                  ),
+                ],
+              ),
             ),
           ),
           const Divider(height: 1),
@@ -401,11 +408,18 @@ class _StockLogCard extends StatelessWidget {
               children: [
                 const Icon(Icons.person_outline, size: 16),
                 const SizedBox(width: 4),
-                Text(log.userName),
+                Expanded(
+                  child: Text(log.userName, overflow: TextOverflow.ellipsis),
+                ),
                 const SizedBox(width: 16),
                 const Icon(Icons.schedule, size: 16),
                 const SizedBox(width: 4),
-                Text(logDateFormat.format(log.createdAt)),
+                Expanded(
+                  child: Text(
+                    logDateFormat.format(log.createdAt),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
           ],
